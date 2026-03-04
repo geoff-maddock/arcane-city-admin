@@ -17,7 +17,11 @@ import {
 import type { EventRequest } from "@/types/api";
 
 function getClient(): Anthropic {
-  return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  return new Anthropic({
+    apiKey: process.env.ANTHROPIC_API_KEY,
+    maxRetries: 3,
+    timeout: 60000,
+  });
 }
 
 function parseJsonResponse(text: string): unknown {

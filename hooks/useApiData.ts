@@ -42,7 +42,7 @@ export function useVisibilities() {
 }
 
 // Debounced entity search hook
-export function useEntitySearch(entityType?: string) {
+export function useEntitySearch(entityType?: string, entityRole?: string) {
   const [results, setResults] = useState<EntityResponse[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -59,6 +59,7 @@ export function useEntitySearch(entityType?: string) {
         try {
           const params = new URLSearchParams({ name: query, limit: "20" });
           if (entityType) params.set("entity_type", entityType);
+          if (entityRole) params.set("role", entityRole);
           const data: PaginatedResponse<EntityResponse> = await get(
             `/api/entities?${params.toString()}`
           );
@@ -70,7 +71,7 @@ export function useEntitySearch(entityType?: string) {
         }
       }, 300);
     },
-    [entityType]
+    [entityType, entityRole]
   );
 
   return { results, isLoading, search };

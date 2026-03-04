@@ -6,10 +6,11 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const name = searchParams.get("name") || undefined;
     const entity_type = searchParams.get("entity_type") || undefined;
+    const role = searchParams.get("role") || undefined;
     const limit = searchParams.get("limit")
       ? Number(searchParams.get("limit"))
       : undefined;
-    const data = await arcaneApi.getEntities({ name, entity_type, limit });
+    const data = await arcaneApi.getEntities({ name, entity_type, role, limit });
     return NextResponse.json(data);
   } catch (err: unknown) {
     const msg =

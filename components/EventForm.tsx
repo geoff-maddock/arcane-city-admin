@@ -283,7 +283,7 @@ export function EventForm({
             label="Venue"
             value={form.venue_id ?? null}
             onChange={(id) => set("venue_id", id)}
-            entityType="Venue"
+            entityRole="venue"
             placeholder="Search venues..."
             initialName={initialVenue?.name}
           />

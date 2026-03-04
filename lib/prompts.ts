@@ -14,21 +14,28 @@ import type {
 // ─── Vision Extraction ───────────────────────────────────────────────────────
 
 export function buildExtractionSystemPrompt(): string {
+  const today = new Date().toISOString().split("T")[0]; // e.g. "2026-03-03"
   return `You are an event data extraction specialist for arcane.city, a music and arts event tracker focused on Pittsburgh PA and surrounding areas.
 
 Your task is to analyze event flyer images and extract structured data. Return ONLY a valid JSON object — no markdown fences, no extra text.
 
-EVENT SCHEMA (what will be sent to the API):
-Required: name (string), start_at (ISO 8601 UTC)
-Optional fields:
+Today's date is ${today}. Use this to infer the correct year when a flyer shows only a month/day.
+
+RESPONSE JSON SCHEMA (use these exact field names):
+Required:
+- name: string — event name
+- date_text: string — exact date/time text copied from the flyer
+- start_at_parsed: string — start time as ISO 8601 UTC (e.g. "2026-03-07T02:00:00Z")
+
+Optional:
+- end_at_parsed: string — end time as ISO 8601 UTC
+- door_at_parsed: string — door open time as ISO 8601 UTC
 - short: string, max 255 chars, one-line tagline
 - description: string, full description
 - venue_name: string, exact venue name from flyer
 - promoter_name: string, promoter or organizer name
 - presale_price: number (dollars, no $ sign)
 - door_price: number
-- door_at: string, ISO 8601 UTC door open time
-- end_at: string, ISO 8601 UTC end time
 - min_age: integer (0=all ages, 18=18+, 21=21+)
 - primary_link: string, URL
 - ticket_link: string, ticketing URL
@@ -40,7 +47,7 @@ Optional fields:
 - notes: string, your caveats or uncertain items
 
 EXTRACTION RULES:
-1. Dates: All times are Eastern Time (America/New_York) unless stated otherwise. Convert to UTC for ISO 8601 fields. If no year shown, assume the nearest future occurrence. Store raw date text in date_text.
+1. Dates: All times are Eastern Time (America/New_York) unless stated otherwise. Convert to UTC for start_at_parsed/end_at_parsed/door_at_parsed. Always pick the nearest future date when the year is not shown.
 2. Prices: "10/15" or "$10 adv / $15 dos" = presale_price:10, door_price:15. "Free" = presale_price:0, door_price:0.
 3. Age: "21+" or "21 and over" = min_age:21. "18+" = min_age:18. "all ages" or "AA" = min_age:0.
 4. Tags: Extract specific genres (e.g. "drum and bass", "jungle", "techno", "noise rock") not vague categories. Include themes like "benefit", "queer".
