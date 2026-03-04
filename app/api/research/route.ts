@@ -1,12 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import axios from "axios";
 import * as cheerio from "cheerio";
+import { resolveArea, raFetchEvents } from "@/lib/ra-graphql";
 
 export interface ImageCandidate {
   src: string;
   alt?: string;
   width?: number;
   height?: number;
+  // RA-specific enrichment (present when sourced from RA GraphQL)
+  eventTitle?: string;
+  eventDate?: string;
+  eventUrl?: string;
+  artists?: string[];
+  venueName?: string;
 }
 
 export interface ResearchResponse {
@@ -76,6 +83,55 @@ export async function POST(req: NextRequest) {
     } catch {
       return NextResponse.json({ error: "Invalid URL" }, { status: 400 });
     }
+
+    // ─── RA.co: use GraphQL instead of HTML scraping ─────────────────────────
+    const parsedUrl = new URL(targetUrl);
+    if (parsedUrl.hostname === "ra.co" || parsedUrl.hostname === "www.ra.co") {
+      // Extract area slug from path like /events/us/pittsburgh → "pittsburgh"
+      const pathParts = parsedUrl.pathname.replace(/^\/+|\/+$/g, "").split("/");
+      // Path: events / <country> / <city>  OR  events / <city>
+      const areaSlug = pathParts.length >= 3 ? pathParts[2] : pathParts[pathParts.length - 1];
+
+      if (!areaSlug) {
+        return NextResponse.json(
+          { error: "Could not determine area from RA URL. Use a URL like ra.co/events/us/pittsburgh" },
+          { status: 400 }
+        );
+      }
+
+      const area = await resolveArea(areaSlug);
+      if (!area) {
+        return NextResponse.json(
+          { error: `Could not find RA area for "${areaSlug}". Check the city slug in the URL.` },
+          { status: 404 }
+        );
+      }
+
+      const today = new Date().toISOString().split("T")[0];
+      const twoWeeksOut = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)
+        .toISOString()
+        .split("T")[0];
+
+      const { events } = await raFetchEvents(area.id, today, twoWeeksOut);
+
+      const images: ImageCandidate[] = events
+        .filter((e) => e.imageUrl)
+        .map((e) => ({
+          src: e.imageUrl!,
+          alt: e.title,
+          eventTitle: e.title,
+          eventDate: e.startTime ?? e.date,
+          eventUrl: e.eventUrl,
+          artists: e.artists.length > 0 ? e.artists : undefined,
+          venueName: e.venueName,
+        }));
+
+      return NextResponse.json({
+        images,
+        pageTitle: `RA ${area.name} Events`,
+      } satisfies ResearchResponse);
+    }
+    // ─────────────────────────────────────────────────────────────────────────
 
     const htmlResponse = await axios.get<string>(targetUrl, {
       timeout: 15000,
