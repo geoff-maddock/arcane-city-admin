@@ -148,7 +148,7 @@ arcane-city-admin/
 | Variable | Required | Description |
 |---|---|---|
 | `ARCANE_CITY_API_URL` | Yes | API base URL (default: `https://arcane.city`) |
-| `ARCANE_CITY_API_KEY` | Yes | Bearer token for arcane city |
+| `ARCANE_CITY_API_KEY` | Optional | API key for Arcane City if you have a PAT that does not expire |
 | `ARCANE_CITY_USERNAME` | Yes | Basic auth username |
 | `ARCANE_CITY_PASSWORD` | Yes | Basic auth password |
 | `ANTHROPIC_API_KEY` | Yes | Anthropic Claude API key |
