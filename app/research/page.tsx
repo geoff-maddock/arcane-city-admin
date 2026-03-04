@@ -46,38 +46,65 @@ interface ImageCardProps {
 }
 
 function ImageCard({ candidate, isQueued, isActive, disabled, onAnalyze }: ImageCardProps) {
+  const hasMetadata = !!(candidate.eventTitle || candidate.artists?.length || candidate.venueName);
+
   return (
-    <div className="relative group rounded-lg overflow-hidden border bg-muted aspect-square">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={candidate.src}
-        alt={candidate.alt ?? "Image candidate"}
-        className="w-full h-full object-cover"
-        loading="lazy"
-      />
+    <div className={cn("group rounded-lg overflow-hidden border bg-muted flex flex-col", !hasMetadata && "aspect-square")}>
+      {/* Image area */}
+      <div className="relative flex-1 min-h-0 aspect-square">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={candidate.src}
+          alt={candidate.alt ?? "Image candidate"}
+          className="w-full h-full object-cover"
+          loading="lazy"
+        />
 
-      {isQueued && (
-        <div className="absolute top-2 right-2">
-          <Badge className="bg-green-500 text-white border-0 gap-1 text-xs">
-            <CheckCircle2 className="h-3 w-3" />
-            Queued
-          </Badge>
-        </div>
-      )}
+        {isQueued && (
+          <div className="absolute top-2 right-2">
+            <Badge className="bg-green-500 text-white border-0 gap-1 text-xs">
+              <CheckCircle2 className="h-3 w-3" />
+              Queued
+            </Badge>
+          </div>
+        )}
 
-      {isActive && (
-        <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin text-white" />
-        </div>
-      )}
+        {isActive && (
+          <div className="absolute inset-0 bg-black/60 flex items-center justify-center">
+            <Loader2 className="h-8 w-8 animate-spin text-white" />
+          </div>
+        )}
 
-      {!isQueued && !isActive && (
-        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2 p-2">
-          <Button size="sm" onClick={() => onAnalyze(candidate)} disabled={disabled}>
-            Analyze
-          </Button>
-          {candidate.alt && (
-            <p className="text-white text-xs text-center line-clamp-2">{candidate.alt}</p>
+        {!isQueued && !isActive && (
+          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+            <Button size="sm" onClick={() => onAnalyze(candidate)} disabled={disabled}>
+              Analyze
+            </Button>
+          </div>
+        )}
+      </div>
+
+      {/* RA metadata panel */}
+      {hasMetadata && (
+        <div className="p-2 text-xs space-y-0.5 border-t bg-background">
+          {candidate.eventTitle && (
+            <p className="font-medium line-clamp-1 text-foreground">{candidate.eventTitle}</p>
+          )}
+          {candidate.eventDate && (
+            <p className="text-muted-foreground">
+              {new Date(candidate.eventDate).toLocaleDateString("en-US", {
+                weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit",
+              })}
+            </p>
+          )}
+          {candidate.venueName && (
+            <p className="text-muted-foreground line-clamp-1">{candidate.venueName}</p>
+          )}
+          {candidate.artists && candidate.artists.length > 0 && (
+            <p className="text-muted-foreground line-clamp-1">
+              {candidate.artists.slice(0, 3).join(", ")}
+              {candidate.artists.length > 3 && ` +${candidate.artists.length - 3}`}
+            </p>
           )}
         </div>
       )}
