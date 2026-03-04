@@ -1,4 +1,6 @@
 import axios, { AxiosInstance } from "axios";
+import fs from "fs/promises";
+import path from "path";
 import type {
   EventRequest,
   EventResponse,
@@ -18,13 +20,69 @@ export function setActiveLogs(logs: RequestLog[] | null): void {
   _activeLogs = logs;
 }
 
-function getAuthHeader(): string {
-  const apiKey = process.env.ARCANE_CITY_API_KEY;
-  if (apiKey) return `Bearer ${apiKey}`;
+// ── Token management ────────────────────────────────────────────────────────
+
+const TOKEN_FILE = path.join(process.cwd(), "data", "token.json");
+let cachedToken: string | null = null;
+
+async function loadTokenFromFile(): Promise<string | null> {
+  try {
+    const raw = await fs.readFile(TOKEN_FILE, "utf-8");
+    return (JSON.parse(raw) as { token: string }).token || null;
+  } catch {
+    return null;
+  }
+}
+
+async function saveTokenToFile(token: string): Promise<void> {
+  await fs.mkdir(path.dirname(TOKEN_FILE), { recursive: true });
+  await fs.writeFile(TOKEN_FILE, JSON.stringify({ token }), "utf-8");
+}
+
+async function invalidateToken(): Promise<void> {
+  cachedToken = null;
+  try {
+    await fs.unlink(TOKEN_FILE);
+  } catch {
+    // ignore if file doesn't exist
+  }
+}
+
+async function fetchNewToken(): Promise<string> {
+  const baseURL = process.env.ARCANE_CITY_API_URL || "https://arcane.city";
   const username = process.env.ARCANE_CITY_USERNAME || "";
   const password = process.env.ARCANE_CITY_PASSWORD || "";
-  return `Basic ${Buffer.from(`${username}:${password}`).toString("base64")}`;
+  const basicAuth = `Basic ${Buffer.from(`${username}:${password}`).toString("base64")}`;
+
+  const res = await axios.post<{ token: string }>(
+    `${baseURL}/api/tokens/create`,
+    { token_name: "arcane-city-admin" },
+    {
+      headers: {
+        Authorization: basicAuth,
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+    }
+  );
+
+  const token = res.data.token;
+  cachedToken = token;
+  await saveTokenToFile(token);
+  return token;
 }
+
+async function getToken(): Promise<string> {
+  if (cachedToken) return cachedToken;
+  const fileToken = await loadTokenFromFile();
+  if (fileToken) {
+    cachedToken = fileToken;
+    return fileToken;
+  }
+  return fetchNewToken();
+}
+
+// ── Axios client ─────────────────────────────────────────────────────────────
 
 function getClient(): AxiosInstance {
   const baseURL = process.env.ARCANE_CITY_API_URL || "https://arcane.city";
@@ -32,17 +90,19 @@ function getClient(): AxiosInstance {
   const client = axios.create({
     baseURL: `${baseURL}/api`,
     headers: {
-      Authorization: getAuthHeader(),
       "Content-Type": "application/json",
       Accept: "application/json",
     },
     timeout: 20000,
   });
 
-  client.interceptors.request.use((config) => {
+  client.interceptors.request.use(async (config) => {
+    const token = await getToken();
+    config.headers.Authorization = `Bearer ${token}`;
+
     if (_activeLogs !== null) {
       const base = (config.baseURL ?? "").replace(/\/$/, "");
-      const path = config.url ?? "";
+      const urlPath = config.url ?? "";
       const qs = config.params
         ? "?" + new URLSearchParams(
             Object.entries(config.params as Record<string, string>).map(([k, v]) => [k, String(v)])
@@ -51,10 +111,11 @@ function getClient(): AxiosInstance {
       _activeLogs.push({
         ts: new Date().toISOString(),
         method: (config.method ?? "GET").toUpperCase(),
-        url: `${base}${path}${qs}`,
+        url: `${base}${urlPath}${qs}`,
         requestBody: config.data ?? undefined,
       });
     }
+
     return config;
   });
 
@@ -67,7 +128,22 @@ function getClient(): AxiosInstance {
       }
       return response;
     },
-    (error: unknown) => {
+    async (error: unknown) => {
+      if (
+        axios.isAxiosError(error) &&
+        error.response?.status === 401 &&
+        !(error.config as Record<string, unknown>)._retried
+      ) {
+        await invalidateToken();
+        const newToken = await fetchNewToken();
+        const retryConfig = {
+          ...error.config,
+          _retried: true,
+          headers: { ...error.config?.headers, Authorization: `Bearer ${newToken}` },
+        };
+        return axios.request(retryConfig);
+      }
+
       if (_activeLogs?.length && axios.isAxiosError(error)) {
         const last = _activeLogs[_activeLogs.length - 1];
         last.status = error.response?.status;
@@ -134,11 +210,12 @@ export const arcaneApi = {
     });
 
     const baseURL = process.env.ARCANE_CITY_API_URL || "https://arcane.city";
+    const token = await getToken();
 
     await axios.post(`${baseURL}/api/events/${eventId}/photos`, form, {
       headers: {
         ...form.getHeaders(),
-        Authorization: getAuthHeader(),
+        Authorization: `Bearer ${token}`,
       },
       timeout: 30000,
     });
