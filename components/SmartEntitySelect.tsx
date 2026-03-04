@@ -10,6 +10,7 @@ interface SmartEntitySelectProps {
   value: number | null;
   onChange: (id: number | null, entity: EntityResponse | null) => void;
   entityType?: string; // "Venue", "Individual", "Group"
+  entityRole?: string; // "venue", "dj", etc.
   placeholder?: string;
   label?: string;
   initialName?: string; // Pre-populate display when editing
@@ -19,6 +20,7 @@ export function SmartEntitySelect({
   value,
   onChange,
   entityType,
+  entityRole,
   placeholder = "Search...",
   label,
   initialName,
@@ -26,7 +28,7 @@ export function SmartEntitySelect({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState(initialName || "");
   const [selectedName, setSelectedName] = useState(initialName || "");
-  const { results, isLoading, search } = useEntitySearch(entityType);
+  const { results, isLoading, search } = useEntitySearch(entityType, entityRole);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 

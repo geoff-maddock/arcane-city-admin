@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   Upload,
   CalendarSearch,
+  Globe,
   Settings,
   Zap,
 } from "lucide-react";
@@ -14,6 +15,7 @@ import { cn } from "@/lib/utils";
 const NAV = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/upload", label: "Add Event", icon: Upload },
+  { href: "/research", label: "Research", icon: Globe },
   { href: "/events", label: "Events", icon: CalendarSearch },
   { href: "/settings", label: "Settings", icon: Settings },
 ];

@@ -147,6 +147,7 @@ export const arcaneApi = {
   async getEntities(params?: {
     name?: string;
     entity_type?: string;
+    role?: string;
     limit?: number;
     page?: number;
   }): Promise<PaginatedResponse<EntityResponse>> {
@@ -154,6 +155,7 @@ export const arcaneApi = {
     if (params?.name) queryParams["filters[name]"] = params.name;
     if (params?.entity_type)
       queryParams["filters[entity_type]"] = params.entity_type;
+    if (params?.role) queryParams["filters[role]"] = params.role;
     if (params?.limit) queryParams["limit"] = String(params.limit);
     if (params?.page) queryParams["page"] = String(params.page);
     const res = await getClient().get<PaginatedResponse<EntityResponse>>(
