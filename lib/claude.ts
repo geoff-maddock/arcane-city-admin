@@ -13,6 +13,7 @@ import {
   buildExtractionUserPrompt,
   buildMatchingPrompt,
   buildEnrichmentPrompt,
+  buildRedditPostPrompt,
 } from "./prompts";
 import type { EventRequest } from "@/types/api";
 
@@ -121,4 +122,36 @@ export async function enrichEvent(params: {
     throw new Error("No text response from Claude");
   }
   return parseJsonResponse(textBlock.text) as Partial<EventRequest>;
+}
+
+// Generate a Reddit post title and body for an event
+export async function generateRedditPost(
+  event: EventResponse
+): Promise<{ title: string; body: string }> {
+  const message = await getClient().messages.create({
+    model: "claude-sonnet-4-6",
+    max_tokens: 1024,
+    messages: [
+      {
+        role: "user",
+        content: buildRedditPostPrompt(event),
+      },
+    ],
+  });
+
+  const textBlock = message.content.find((c) => c.type === "text");
+  if (!textBlock || textBlock.type !== "text") {
+    throw new Error("No text response from Claude");
+  }
+
+  const parsed = parseJsonResponse(textBlock.text) as {
+    title: string;
+    body: string;
+  };
+
+  if (!parsed.title || !parsed.body) {
+    throw new Error("Claude returned incomplete Reddit post data");
+  }
+
+  return { title: parsed.title, body: parsed.body };
 }

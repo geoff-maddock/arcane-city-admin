@@ -211,3 +211,88 @@ export function buildProposedEvent(
     entity_list: matched.entity_list ?? [],
   };
 }
+
+// ─── Reddit Post Generation ───────────────────────────────────────────────────
+
+export function buildRedditPostPrompt(event: EventResponse): string {
+  const easternOpts: Intl.DateTimeFormatOptions = {
+    timeZone: "America/New_York",
+  };
+
+  const dateStr = event.start_at
+    ? new Date(event.start_at).toLocaleDateString("en-US", {
+        ...easternOpts,
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      })
+    : "TBD";
+
+  const timeStr = event.start_at
+    ? new Date(event.start_at).toLocaleTimeString("en-US", {
+        ...easternOpts,
+        hour: "numeric",
+        minute: "2-digit",
+      })
+    : "";
+
+  const doorStr = event.door_at
+    ? new Date(event.door_at).toLocaleTimeString("en-US", {
+        ...easternOpts,
+        hour: "numeric",
+        minute: "2-digit",
+      })
+    : null;
+
+  const performers = event.entities?.map((e) => e.name) ?? [];
+  const tags = event.tags?.map((t) => t.name) ?? [];
+  const venueName = event.venue?.name ?? null;
+  const eventUrl =
+    event.primary_link ?? `https://arcane.city/events/${event.slug}`;
+
+  const priceLines: string[] = [];
+  if (event.presale_price != null) priceLines.push(`Presale: $${event.presale_price}`);
+  if (event.door_price != null) priceLines.push(`Door: $${event.door_price}`);
+
+  const eventData = {
+    name: event.name,
+    date: dateStr,
+    time: timeStr,
+    doors: doorStr,
+    venue: venueName,
+    description: event.description ?? event.short ?? null,
+    short: event.short ?? null,
+    performers,
+    tags,
+    min_age: event.min_age,
+    prices: priceLines,
+    ticket_link: event.ticket_link ?? null,
+    event_url: eventUrl,
+    is_benefit: event.is_benefit ?? false,
+  };
+
+  return `You are writing a Reddit post to promote a Pittsburgh music/arts event.
+Return ONLY a valid JSON object with two fields: "title" and "body". No markdown fences, no extra text.
+
+EVENT DATA:
+${JSON.stringify(eventData, null, 2)}
+
+INSTRUCTIONS:
+1. title: Follow this format: "Upcoming Show: {event name} at {venue} — {short date like 'Fri Mar 7'}"
+   - Omit "at {venue}" if no venue. Keep under 300 characters.
+2. body: Write in Reddit markdown. Be enthusiastic but not spammy. Structure:
+   - Bold opening: **{event name}**
+   - 📍 {venue} | Pittsburgh
+   - 📅 {date} at {time}
+   - 🚪 Doors at {doors} (only if doors time available)
+   - 🔞 {age}+ (only if min_age > 0)
+   - 💵 {prices} (only if prices available)
+   - Blank line, then the description/short — 2-4 sentences, edited for clarity.
+   - **Performers:** bullet list (only if performers exist)
+   - **Tags:** comma-separated (only if tags exist)
+   - [More info]({event_url}) and [Get Tickets]({ticket_link}) if ticket_link exists.
+   - Footer: ---\\n^(Posted via [Arcane City](https://arcane.city))
+3. Tone: friendly, direct, informative. No excessive exclamation marks.
+4. Return ONLY the JSON: { "title": "...", "body": "..." }`;
+}

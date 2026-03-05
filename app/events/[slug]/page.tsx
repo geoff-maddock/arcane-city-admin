@@ -17,6 +17,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { EventForm } from "@/components/EventForm";
+import { RedditPostForm } from "@/components/RedditPostForm";
 import { useQueueMutations } from "@/hooks/useQueue";
 import { formatEventDate } from "@/lib/utils";
 import type { EventResponse } from "@/types/api";
@@ -241,6 +242,11 @@ export default function EventDetailPage({
           </Button>
         </CardContent>
       </Card>
+
+      <Separator />
+
+      {/* Reddit sharing */}
+      <RedditPostForm event={event} slug={slug} />
 
       {/* Manual edit / confirm enrichment form */}
       {showForm && (
